@@ -65,10 +65,10 @@ def load_datasets(batch_size, world_size, rank):
   # Task 1: Choose an appropriate directory to download the datasets into
   root_dir = os.getcwd()
 
-  extra_dataset = SVHN(root=root_dir, split='extra', download=True, transform=ToTensor())
-  train_dataset = SVHN(root=root_dir, split='train', download=True, transform=ToTensor())
+  extra_dataset = SVHN(root=root_dir, split='extra', download=False, transform=ToTensor())
+  train_dataset = SVHN(root=root_dir, split='train', download=False, transform=ToTensor())
   dataset = torch.utils.data.ConcatDataset([train_dataset, extra_dataset])
-  val_dataset = SVHN(root=root_dir, split='test', download=True, transform=ToTensor())
+  val_dataset = SVHN(root=root_dir, split='test', download=False, transform=ToTensor())
   print("Train dataset: {}".format(dataset))
   print("Val dataset: {}".format(val_dataset))
   val_ds = val_dataset
@@ -76,13 +76,15 @@ def load_datasets(batch_size, world_size, rank):
   # Task 2: modify train loader to work with multiple processes
   # 1. Generate a DistributedSample instance with num_replicas = world_size
   #    and rank=rank.
+  sampler = torch.utils.data.DistributedSampler(num_replicas=world_size, rank=rank)
   # 2. Set train_loader's sampler to the distributed sampler
 
   train_loader = torch.utils.data.DataLoader(dataset=dataset,   
                                              batch_size=batch_size,
                                              shuffle=False,
                                              num_workers=0,
-                                             pin_memory=True)
+                                             pin_memory=True,
+                                             sampler=sampler)
   val_loader = DataLoader(val_ds, batch_size*2, num_workers=4, pin_memory=True)
   
   return train_loader, val_loader
@@ -132,6 +134,7 @@ def create_model():
 
   # Task 2: Wrap the model in DistributedDataParallel to 
   # make the model train in a distributed fashion.
+  model = torch.nn.parallel.DistributedDataParallel(model)
 
   # Printing sizes of model parameters
   for t in model.parameters():
@@ -191,18 +194,14 @@ def run_epochs(epochs, lr, model, train_loader, val_loader, rank, opt_func=torch
     return history
 
 def train(proc_num, args):
-    process = psutil.Process(os.getpid())
-
-    profile_thread = Thread(target=profile, args=(process,))
-    profile_thread.start()
 
     rank = args.nr * args.num_proc + proc_num
 
     # Task 2: Initialize distributed process group with following parameters,
-    #  backend = 'gloo'
-    #  init_method = 'env://'
-    #  world_size = args.world_size
-    #  rank = rank
+    backend = 'gloo'
+    init_method = 'env://'
+    world_size = args.world_size
+    rank = rank
 
     model = create_model()
     train_loader, val_loader = load_datasets(batch_size=args.batch_size, world_size=args.world_size, rank=rank)
