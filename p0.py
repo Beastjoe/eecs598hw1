@@ -54,8 +54,8 @@ def main():
     print(args)
 
     # Task 2: Assign IP address and port for master process, i.e. process with rank=0
-    #os.environ['MASTER_ADDR'] = ''
-    #os.environ['MASTER_PORT'] = ''
+    os.environ['MASTER_ADDR'] = '155.98.36.125'
+    os.environ['MASTER_PORT'] = '8000'
 
     # Spawns one or many processes untied to the first Python process that runs on the file.
     # This is to get around Python's GIL that prevents parallelism within independent threads.
@@ -65,10 +65,10 @@ def load_datasets(batch_size, world_size, rank):
   # Task 1: Choose an appropriate directory to download the datasets into
   root_dir = os.getcwd()
 
-  extra_dataset = SVHN(root=root_dir, split='extra', download=False, transform=ToTensor())
-  train_dataset = SVHN(root=root_dir, split='train', download=False, transform=ToTensor())
+  extra_dataset = SVHN(root=root_dir, split='extra', download=True, transform=ToTensor())
+  train_dataset = SVHN(root=root_dir, split='train', download=True, transform=ToTensor())
   dataset = torch.utils.data.ConcatDataset([train_dataset, extra_dataset])
-  val_dataset = SVHN(root=root_dir, split='test', download=False, transform=ToTensor())
+  val_dataset = SVHN(root=root_dir, split='test', download=True, transform=ToTensor())
   print("Train dataset: {}".format(dataset))
   print("Val dataset: {}".format(val_dataset))
   val_ds = val_dataset
@@ -76,7 +76,7 @@ def load_datasets(batch_size, world_size, rank):
   # Task 2: modify train loader to work with multiple processes
   # 1. Generate a DistributedSample instance with num_replicas = world_size
   #    and rank=rank.
-  sampler = torch.utils.data.DistributedSampler(num_replicas=world_size, rank=rank)
+  sampler = torch.utils.data.DistributedSampler(dataset=dataset, num_replicas=world_size, rank=rank)
   # 2. Set train_loader's sampler to the distributed sampler
 
   train_loader = torch.utils.data.DataLoader(dataset=dataset,   
@@ -134,7 +134,7 @@ def create_model():
 
   # Task 2: Wrap the model in DistributedDataParallel to 
   # make the model train in a distributed fashion.
-  model = torch.nn.parallel.DistributedDataParallel(model)
+  model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
 
   # Printing sizes of model parameters
   for t in model.parameters():
@@ -198,10 +198,7 @@ def train(proc_num, args):
     rank = args.nr * args.num_proc + proc_num
 
     # Task 2: Initialize distributed process group with following parameters,
-    backend = 'gloo'
-    init_method = 'env://'
-    world_size = args.world_size
-    rank = rank
+    dist.init_process_group(backend='gloo', rank=rank, world_size=args.world_size, init_method='env://')
 
     model = create_model()
     train_loader, val_loader = load_datasets(batch_size=args.batch_size, world_size=args.world_size, rank=rank)
