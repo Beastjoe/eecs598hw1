@@ -134,7 +134,7 @@ def create_model():
 
   # Task 2: Wrap the model in DistributedDataParallel to 
   # make the model train in a distributed fashion.
-  model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
+  model = torch.nn.parallel.DistributedDataParallel(model)
 
   # Printing sizes of model parameters
   for t in model.parameters():
