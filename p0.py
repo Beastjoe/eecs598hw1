@@ -54,8 +54,8 @@ def main():
     print(args)
 
     # Task 2: Assign IP address and port for master process, i.e. process with rank=0
-    os.environ['MASTER_ADDR'] = '10.10.1.1'
-    os.environ['MASTER_PORT'] = '8000'
+    # os.environ['MASTER_ADDR'] = '155.98.36.125'
+    # os.environ['MASTER_PORT'] = '8000'
 
     # Spawns one or many processes untied to the first Python process that runs on the file.
     # This is to get around Python's GIL that prevents parallelism within independent threads.
@@ -76,15 +76,14 @@ def load_datasets(batch_size, world_size, rank):
   # Task 2: modify train loader to work with multiple processes
   # 1. Generate a DistributedSample instance with num_replicas = world_size
   #    and rank=rank.
-  sampler = torch.utils.data.DistributedSampler(dataset=dataset, num_replicas=world_size, rank=rank)
+  # sampler = torch.utils.data.DistributedSampler(dataset=dataset, num_replicas=world_size, rank=rank)
   # 2. Set train_loader's sampler to the distributed sampler
 
   train_loader = torch.utils.data.DataLoader(dataset=dataset,   
                                              batch_size=batch_size,
                                              shuffle=False,
                                              num_workers=0,
-                                             pin_memory=True,
-                                             sampler=sampler)
+                                             pin_memory=True)
   val_loader = DataLoader(val_ds, batch_size*2, num_workers=4, pin_memory=True)
   
   return train_loader, val_loader
@@ -134,7 +133,7 @@ def create_model():
 
   # Task 2: Wrap the model in DistributedDataParallel to 
   # make the model train in a distributed fashion.
-  model = torch.nn.parallel.DistributedDataParallel(model)
+  # model = torch.nn.parallel.DistributedDataParallel(model)
 
   # Printing sizes of model parameters
   for t in model.parameters():
@@ -198,7 +197,7 @@ def train(proc_num, args):
     rank = args.nr * args.num_proc + proc_num
 
     # Task 2: Initialize distributed process group with following parameters,
-    dist.init_process_group(backend='gloo', rank=rank, world_size=args.world_size, init_method='env://')
+    # dist.init_process_group(backend='gloo', rank=rank, world_size=args.world_size, init_method='env://')
 
     model = create_model()
     train_loader, val_loader = load_datasets(batch_size=args.batch_size, world_size=args.world_size, rank=rank)
