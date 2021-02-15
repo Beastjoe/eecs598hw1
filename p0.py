@@ -46,7 +46,7 @@ def main():
                                                 help='number of procs per node')
     parser.add_argument('-nr', '--nr', default=0, type=int,
                                                     help='ranking within the nodes')
-    parser.add_argument('--batch_size', default=256, type=int, metavar='N',
+    parser.add_argument('--batch_size', default=64, type=int, metavar='N',
                                                         help='Batch size')
     parser.add_argument('--do_chkpt', default=False, action='store_true', help='Enable checkpointing')
     args = parser.parse_args()
